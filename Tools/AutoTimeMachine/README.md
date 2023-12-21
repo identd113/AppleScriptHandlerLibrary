@@ -25,7 +25,7 @@ Once this is saved out, you can double click on it.
 
 The script uses `tmutil` via command line, to pull out some information.  The first things we need to know is the TimeMachine volume name, and the Backup Destination ID<br>
 `tmutil destinationinfo`
-Once we have this information, we can ask `diskutil` to mount the volume, by name.<br>  
+Once we have this information, we can ask `diskutil` to mount the volume, by name. 
 `diskutil mount VolumeName`<br>
 When the volume mounts, we run a TimeMachine back to it, using `tmutil`:<br>
 `tmutil startbackup --block --destination <DestinationID>`<br>
