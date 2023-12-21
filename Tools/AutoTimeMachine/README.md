@@ -32,11 +32,15 @@ At this point, we are done.
 The script uses progress bars as its UI, which is not the best approach, but its functional enough to get through this, without having to write more code.
 
 When launched, the first screen you will see is:
+
 ![Backup Run](backup_run.png)
 
 Once a backup starts, we see:
+
 ![Backup Started](backup_start.png)
+
 Once this is completed, we see the following summary:
+
 ![Backup Run](backup_complete.png)
 
 
