@@ -37,7 +37,7 @@ When launched, the first screen you will see is:
 
 Once a backup starts, we see:
 
-![Backup Started](backup_start.png)
+![Backup Started](backup_started.png)
 
 Once this is completed, we see the following summary:
 
