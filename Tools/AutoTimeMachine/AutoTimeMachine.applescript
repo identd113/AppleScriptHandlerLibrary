@@ -55,13 +55,12 @@ on getBackupID()
 end getBackupID
 
 on mountDrive(diskname)
-	do shell script "diskutil mount " & diskname
+	do shell script "diskutil mount " & quote & diskname & quote
 end mountDrive
 
 on ejectDrive(diskname)
-	do shell script "diskutil eject " & diskname
+	do shell script "diskutil eject " & quote & diskname & quote
 end ejectDrive
-
 
 on stringtolist(theString, delim)
 	set oldelim to AppleScript's text item delimiters
