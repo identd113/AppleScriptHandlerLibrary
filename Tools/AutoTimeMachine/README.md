@@ -6,7 +6,7 @@ This script is meant to do something simple, mount a TimeMachine backup, run a b
 ### But why?
 You may have a personal computer, and a work computer, but use the same equipment on both.  This would allow both a TimeMachine backup to happen, and for the device to be unmounted when it is time to disconnect the current machine from the dock/hub/etc
 ### How do I get this running?
-Like all AppleScripts being shared, only a text version of it can be shared, as a compiled applicaiton, as it would need to be signed.
+Like all AppleScripts being shared, only a text version of it can be shared, as a compiled application would need to be signed.
 1. Download AutoTimeMachine.applescript
 2. Open this in Script Editor.
 3. Press Command K, to compile the script.
@@ -32,9 +32,12 @@ At this point, we are done.
 The script uses progress bars as its UI, which is not the best approach, but its functional enough to get through this, without having to write more code.
 
 When launched, the first screen you will see is:
-IMAGE1
+![Backup Run](backup_run.png)
 
-
+Once a backup starts, we see:
+![Backup Started](backup_start.png)
+Once this is completed, we see the following summary:
+![Backup Run](backup_complete.png)
 
 
 I hope this can be collaborative project, so other options that you use can be added.
