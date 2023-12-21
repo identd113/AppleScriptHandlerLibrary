@@ -23,14 +23,15 @@ Once this is saved out, you can double click on it.
 
 ### What is it doing?
 
-The script uses `tmutil` via command line, to pull out some information.  The first things we need to know is the TimeMachine volume name, and the Backup Destination ID
-`tmutil destinationinfo`<br>
+The script uses `tmutil` via command line, to pull out some information.  The first things we need to know is the TimeMachine volume name, and the Backup Destination ID<br>
+`tmutil destinationinfo`
 Once we have this information, we can ask `diskutil` to mount the volume, by name.<br>  
 `diskutil mount VolumeName`<br>
 When the volume mounts, we run a TimeMachine back to it, using `tmutil`:<br>
 `tmutil startbackup --block --destination <DestinationID>`<br>
 * This may take sometime to complete, so be patient.<br>
-Once the backup is complete, we eject the disk:<br>
+
+Once the backup is complete, we eject the disk:
 `diskutil eject VolumeName`<br>
 At this point, we are done.
 
