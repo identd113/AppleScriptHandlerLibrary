@@ -1,6 +1,8 @@
 
 on run {}
-	set progress description to "Starting " & name of me
+	set app_version to "20231223"
+	set app_string to name of me & " " & app_version
+	set progress description to "Starting " & app_string
 	delay 1
 	set destid to my getBackupID()
 	set progress completed steps to 0
@@ -13,7 +15,7 @@ on run {}
 	delay 1
 	set progress total steps to -1
 	set progress completed steps to -1
-	set progress description to "Starting Backup..."
+	set progress description to "Starting Backup with " & app_string
 	set progress additional description to "Backup Destination ID: " & item 1 of destid & return & "Backup Destination Name: " & item 2 of destid
 	delay 1
 	set runBackupResponse to my runBackup(item 1 of destid)
@@ -23,11 +25,11 @@ on run {}
 	set progress completed steps to 0
 	set progress total steps to 1
 	set progress additional description to runBackupResponse
-	set progress description to "Backup Complete, ejecting disk..."
+	set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
 	delay 1
 	my ejectDrive(item 2 of destid)
 	set progress completed steps to 1
-	set progress description to "Backup Complete, and disk ejected."
+	set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
 	delay 10
 end run
 
