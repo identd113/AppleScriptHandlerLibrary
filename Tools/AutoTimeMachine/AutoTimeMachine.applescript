@@ -1,24 +1,52 @@
+global app_version
+global app_string
+global Destination_Info
+global Selected_Backup
+use AppleScript version "2.4"
+use scripting additions
+use application "JSON Helper"
 
 on run {}
-	set app_version to "20231223"
+	set Destination_Info to {}
+	set Selected_Backup to 0
+	set app_version to "20240120"
 	set app_string to name of me & " " & app_version
 	set progress description to "Starting " & app_string
+	--my statusBackup()
+	my main()
+end run
+
+on main()
 	delay 1
-	set destid to my getBackupID()
+	set Destination_Info to my getBackupID()
+	set item 1 of Destination_Info to ""
+	set Destination_Info to my emptylist(Destination_Info)
+	
+	if length of Destination_Info is greater than or equal to 2 then
+		my selectBackup("")
+	else
+		set Selected_Backup to 1
+	end if
 	set progress completed steps to 0
+	log "1"
 	set progress total steps to 1
-	set progress description to "Verifying " & quote & item 2 of destid & quote & " is mounted..."
-	set mountDriveResponse to my mountDrive(item 2 of destid)
+	set progress description to ("Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string)
+	log "2"
+	log "Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string
+	log "3"
+	
+	set mountDriveResponse to my mountDrive(Selected_Backup)
 	delay 1
 	set progress additional description to mountDriveResponse
 	set progress completed steps to 1
 	delay 1
 	set progress total steps to -1
 	set progress completed steps to -1
+	activate me
 	set progress description to "Starting Backup with " & app_string
-	set progress additional description to "Backup Destination ID: " & item 1 of destid & return & "Backup Destination Name: " & item 2 of destid
+	set progress additional description to "Backup Destination ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Backup Destination Name: " & atm_name of item Selected_Backup of Destination_Info
 	delay 1
-	set runBackupResponse to my runBackup(item 1 of destid)
+	set runBackupResponse to my runBackup(Selected_Backup)
 	set progress total steps to 1
 	set progress completed steps to 1
 	delay 1
@@ -27,42 +55,199 @@ on run {}
 	set progress additional description to runBackupResponse
 	set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
 	delay 1
-	my ejectDrive(item 2 of destid)
+	my ejectDrive(Selected_Backup)
 	set progress completed steps to 1
 	set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
 	delay 10
-end run
+end main
 
-on runBackup(dest_id)
-	set runBackup_temp to (do shell script "tmutil startbackup --block --destination " & dest_id)
+on reopen {}
+	activate me
+end reopen
+
+on runBackup(the_offset)
+	--display dialog "tmutil startbackup --block --destination " & dest_id
+	
+	return (do shell script "tmutil startbackup --block --destination " & atm_id of item the_offset of Destination_Info)
 end runBackup
+
+on statusBackup()
+	set x to "{
+    BackupPhase = Copying;
+    ClientID = \"com.apple.backupd\";
+    DateOfStateChange = \"2023-12-26 05:30:02 +0000\";
+    DestinationID = \"8BBA1EA9-B3A3-4ED7-98C9-4837A0C62601\";
+    DestinationMountPoint = \"/Volumes/TimeMachine\";
+    FractionOfProgressBar = \"0.9\";
+    Progress =     {
+        Percent = \"0.3383718728258243\";
+        \"_raw_Percent\" = \"0.3383718728258243\";
+        \"_raw_totalBytes\" = 373775273984;
+        bytes = 28672;
+        files = 11;
+        totalBytes = 373775273984;
+        totalFiles = 2217999;
+    };
+    Running = 1;
+    attemptOptions = 0;
+}
+"
+	read JSON from x
+	set is_complete to false
+	repeat until is_complete is true
+		set status_response to do shell script "tmutil status"
+		
+	end repeat
+	delay 1
+end statusBackup
 
 on getBackupID()
 	set theID to ""
 	set theNAME to ""
+	set theURL to ""
 	set getBackupID_temp to (do shell script "tmutil destinationinfo")
 	set getBackupID_list to my stringtolist(getBackupID_temp, return)
+	set returned_backups to {}
+	set new_item_reset to true
+	
 	repeat with i from 1 to length of getBackupID_list
-		if item i of getBackupID_list starts with "ID" then
-			set theID to item 2 of my stringtolist(item i of getBackupID_list, ": ")
-			log theID
+		if new_item_reset is true then
+			set newBackup to {atm_name:"", atm_kind:"", atm_url:"", atm_id:"", atm_quota:""}
+			set new_item_reset to false
 		end if
 		
+		--	try
 		if item i of getBackupID_list starts with "Name" then
-			set theNAME to item 2 of my stringtolist(item i of getBackupID_list, ": ")
-			log theNAME
+			set atm_name of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
+			--	log atm_name of newBackup
 		end if
+		--	end try
+		
+		--	try
+		if item i of getBackupID_list starts with "Kind" then
+			set atm_kind of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
+			--	log "kind: " & atm_kind of newBackup
+		end if
+		--	end try
+		
+		--	try
+		if item i of getBackupID_list starts with "ID" then
+			set atm_id of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
+			--	log "id: " & atm_id of newBackup
+		end if
+		--	end try
+		
+		--	try
+		if item i of getBackupID_list starts with "URL" then
+			set atm_url of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
+			--	log "url: " & atm_url of newBackup
+		end if
+		--	end try
+		if item i of getBackupID_list starts with "Quota" then
+			set atm_quota of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
+			--	log "quota: " & atm_quota of newBackup
+		end if
+		if item i of getBackupID_list contains "=" or i is length of getBackupID_list then
+			--	log "yes"
+			set new_item_reset to true
+			--	log newBackup
+			set end of returned_backups to newBackup
+		end if
+		
 	end repeat
-	return {theID, theNAME}
+	return returned_backups
 end getBackupID
 
-on mountDrive(diskname)
-	do shell script "diskutil mount " & quote & diskname & quote
+on mountDrive(the_offset)
+	if atm_kind of item Selected_Backup of Destination_Info is "Local" then
+		return (do shell script "diskutil mount " & quote & atm_name of item the_offset of Destination_Info & quote)
+	else if atm_kind of item Selected_Backup of Destination_Info is "Network" then
+		return (do shell script "open " & quote & atm_url of item the_offset of Destination_Info & quote)
+	end if
 end mountDrive
 
-on ejectDrive(diskname)
-	do shell script "diskutil eject " & quote & diskname & quote
+on ejectDrive(the_offset)
+	if atm_kind of item Selected_Backup of Destination_Info is "Local" then
+		return (do shell script "diskutil eject " & quote & atm_name of item the_offset of Destination_Info & quote)
+	else if atm_kind of item the_offset of Destination_Info is "Network" then
+		return (do shell script "umount " & quote & "/Volumes/" & atm_name of item the_offset of Destination_Info & quote)
+	end if
 end ejectDrive
+
+on selectBackup(the_offset)
+	set disk_names to {}
+	set temp_data to my getNames(0)
+	
+	set backup_run_offset to (choose from list temp_data)
+	set Selected_Backup to my list_position(backup_run_offset, temp_data, true)
+	log Selected_Backup
+	return Selected_Backup
+end selectBackup
+
+on getNames(the_offset)
+	set disk_name to {}
+	repeat with i from 1 to length of Destination_Info
+		set end of disk_name to atm_name of item i of Destination_Info
+	end repeat
+	log disk_name
+	if the_offset is 0 then
+		return disk_name
+	else
+		return item the_offset of disk_name
+	end if
+end getNames
+
+on getIDs(the_offset)
+	set disk_id to {}
+	repeat with i from 1 to length of Destination_Info
+		set end of disk_id to atm_type of item i of Destination_Info
+	end repeat
+	log disk_id
+	if the_offset is 0 then
+		return disk_id
+	else
+		return item the_offset of disk_id
+	end if
+end getIDs
+
+on getTypes(the_offset)
+	set disk_type to {}
+	repeat with i from 1 to length of Destination_Info
+		set end of disk_type to atm_type of item i of Destination_Info
+	end repeat
+	log disk_type
+	if the_offset is 0 then
+		return disk_type
+	else
+		return item the_offset of disk_type
+	end if
+end getTypes
+
+on getQuotas(the_offset)
+	set disk_quota to {}
+	repeat with i from 1 to length of Destination_Info
+		set end of disk_quota to atm_quota of item i of Destination_Info
+	end repeat
+	log disk_quota
+	if the_offset is 0 then
+		return disk_quota
+	else
+		return item the_offset of disk_quota
+	end if
+end getQuotas
+
+on getUrls(the_offset)
+	set disk_url to {}
+	repeat with i from 1 to length of Destination_Info
+		set end of disk_url to atm_url of item i of Destination_Info
+	end repeat
+	log disk_url
+	if the_offset is 0 then
+		return disk_url
+	else
+		return item the_offset of disk_url
+	end if
+end getUrls
 
 on stringtolist(theString, delim)
 	set oldelim to AppleScript's text item delimiters
@@ -79,4 +264,32 @@ on listtostring(theList, delim)
 	set AppleScript's text item delimiters to oldelim
 	return alist
 end listtostring
+
+on emptylist(klist)
+	set nlist to {}
+	set dataLength to length of klist
+	repeat with i from 1 to dataLength
+		if item i of klist is not in {"", {}} then
+			set end of nlist to (item i of klist)
+		end if
+	end repeat
+	return nlist
+end emptylist
+
+on list_position(this_item, this_list, is_strict)
+	if this_item is not false then
+		repeat with i from 1 to length of this_list
+			if is_strict is false then
+				if (item i of this_list as text) contains (this_item as text) then
+					return i
+				end if
+			else
+				if (item i of this_list as text) is (this_item as text) then
+					return i
+				end if
+			end if
+		end repeat
+	end if
+	return 0
+end list_position
 
