@@ -23,48 +23,55 @@ on main()
 	set Destination_Info to my emptylist(Destination_Info)
 	
 	if length of Destination_Info is greater than or equal to 2 then
-		my selectBackup("")
+		set selectedResponse to my selectBackup("")
 	else
 		set Selected_Backup to 1
 	end if
-	set progress completed steps to 0
-	log "1"
-	set progress total steps to 1
-	set progress description to ("Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string)
-	log "2"
-	log "Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string
-	log "3"
-	
-	set mountDriveResponse to my mountDrive(Selected_Backup)
-	delay 1
-	set progress additional description to mountDriveResponse
-	set progress completed steps to 1
-	delay 1
-	set progress total steps to -1
-	set progress completed steps to -1
-	activate me
-	set progress description to "Starting Backup with " & app_string
-	set progress additional description to "Backup Destination ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Backup Destination Name: " & atm_name of item Selected_Backup of Destination_Info
-	delay 1
-	set runBackupResponse to my runBackup(Selected_Backup)
-	set progress total steps to 1
-	set progress completed steps to 1
-	delay 1
-	set progress completed steps to 0
-	set progress total steps to 1
-	set progress additional description to runBackupResponse
-	set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
-	delay 1
-	my ejectDrive(Selected_Backup)
-	set progress completed steps to 1
-	set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
-	delay 10
+	if Selected_Backup is not 0 then
+		set progress completed steps to 0
+		log "1"
+		set progress total steps to 1
+		set progress description to ("Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string)
+		log "2"
+		log "Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string
+		log "3"
+		
+		set mountDriveResponse to my mountDrive(Selected_Backup)
+		delay 1
+		set progress additional description to mountDriveResponse
+		set progress completed steps to 1
+		delay 1
+		set progress total steps to -1
+		set progress completed steps to -1
+		activate me
+		set progress description to "Starting Backup with " & app_string
+		set progress additional description to "Backup Destination ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Backup Destination Name: " & atm_name of item Selected_Backup of Destination_Info
+		set runBackupResponse to my runBackup(Selected_Backup)
+		delay 1
+		set progress total steps to 1
+		set progress completed steps to 1
+		delay 1
+		set progress completed steps to 0
+		set progress total steps to 1
+		set progress additional description to runBackupResponse
+		activate me
+		set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
+		my ejectDrive(Selected_Backup)
+		delay 1
+		set progress completed steps to 1
+		set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
+		delay 10
+	end if
 end main
 
 on reopen {}
 	activate me
 end reopen
 
+on idle {}
+	beep
+	return 5
+end idle
 on runBackup(the_offset)
 	--display dialog "tmutil startbackup --block --destination " & dest_id
 	
@@ -176,10 +183,11 @@ end ejectDrive
 
 on selectBackup(the_offset)
 	set disk_names to {}
-	set temp_data to my getNames(0)
-	
-	set backup_run_offset to (choose from list temp_data)
-	set Selected_Backup to my list_position(backup_run_offset, temp_data, true)
+	set temp_names to my getNames(0)
+	try
+		set backup_run_offset to (choose from list temp_names)
+	end try
+	set Selected_Backup to my list_position(backup_run_offset, temp_names, true)
 	log Selected_Backup
 	return Selected_Backup
 end selectBackup
