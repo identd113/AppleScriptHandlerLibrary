@@ -2,6 +2,9 @@ global app_version
 global app_string
 global Destination_Info
 global Selected_Backup
+global Backup_status
+global Backup_started
+
 use AppleScript version "2.4"
 use scripting additions
 use application "JSON Helper"
@@ -10,6 +13,7 @@ on run {}
 	set Destination_Info to {}
 	set Selected_Backup to 0
 	set app_version to "20240120"
+	set Backup_started to false
 	set app_string to name of me & " " & app_version
 	set progress description to "Starting " & app_string
 	--my statusBackup()
@@ -35,9 +39,9 @@ on main()
 		log "2"
 		log "Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string
 		log "3"
-		
+		delay 0.1
 		set mountDriveResponse to my mountDrive(Selected_Backup)
-		delay 1
+		delay 0.1
 		set progress additional description to mountDriveResponse
 		set progress completed steps to 1
 		delay 1
@@ -46,21 +50,8 @@ on main()
 		activate me
 		set progress description to "Starting Backup with " & app_string
 		set progress additional description to "Backup Destination ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Backup Destination Name: " & atm_name of item Selected_Backup of Destination_Info
+		delay 0.1
 		set runBackupResponse to my runBackup(Selected_Backup)
-		delay 1
-		set progress total steps to 1
-		set progress completed steps to 1
-		delay 1
-		set progress completed steps to 0
-		set progress total steps to 1
-		set progress additional description to runBackupResponse
-		activate me
-		set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
-		my ejectDrive(Selected_Backup)
-		delay 1
-		set progress completed steps to 1
-		set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
-		delay 10
 	end if
 end main
 
@@ -69,44 +60,41 @@ on reopen {}
 end reopen
 
 on idle {}
+	my parse_status() 
+	if tm_running of Backup_status is 1 then
+		set progress total steps to 1
+		set Backup_started to true
+		set progress description to tm_BackupPhase of Backup_status
+		set progress completed steps to tm_Percent of Backup_status
+	end if
+	
+	if Backup_started is true and tm_running of Backup_status is 0 then
+		delay 1
+		set progress completed steps to 0
+		set progress total steps to 1
+		set progress additional description to runBackupResponse
+		activate me
+		set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
+		delay 0.1
+		my ejectDrive(Selected_Backup)
+		delay 1
+		set progress completed steps to 1
+		set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
+		delay 10
+		quit {}
+	end if
 	beep
-	return 5
+	return 3
 end idle
+
 on runBackup(the_offset)
 	--display dialog "tmutil startbackup --block --destination " & dest_id
-	
-	return (do shell script "tmutil startbackup --block --destination " & atm_id of item the_offset of Destination_Info)
+	--do shell script "tmutil startbackup --block --destination " & atm_id of item the_offset of Destination_Info)
+	--	do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info
+	delay 2
+	my parse_status()
+	return (do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info)
 end runBackup
-
-on statusBackup()
-	set x to "{
-    BackupPhase = Copying;
-    ClientID = \"com.apple.backupd\";
-    DateOfStateChange = \"2023-12-26 05:30:02 +0000\";
-    DestinationID = \"8BBA1EA9-B3A3-4ED7-98C9-4837A0C62601\";
-    DestinationMountPoint = \"/Volumes/TimeMachine\";
-    FractionOfProgressBar = \"0.9\";
-    Progress =     {
-        Percent = \"0.3383718728258243\";
-        \"_raw_Percent\" = \"0.3383718728258243\";
-        \"_raw_totalBytes\" = 373775273984;
-        bytes = 28672;
-        files = 11;
-        totalBytes = 373775273984;
-        totalFiles = 2217999;
-    };
-    Running = 1;
-    attemptOptions = 0;
-}
-"
-	read JSON from x
-	set is_complete to false
-	repeat until is_complete is true
-		set status_response to do shell script "tmutil status"
-		
-	end repeat
-	delay 1
-end statusBackup
 
 on getBackupID()
 	set theID to ""
@@ -164,6 +152,97 @@ on getBackupID()
 	end repeat
 	return returned_backups
 end getBackupID
+
+on parse_status()
+	set Backup_running to {tm_BackupPhase:"", tm_ClientID:"", tm_DestinationID:"", tm_DestinationMountPoint:"", tm_FractionOfProgressBar:"", tm_Percent:"", tm_bytes:"", tm_totalBytes:"", totalFiles:"", tm_running:0, tm_TimeRemaining:""}
+	set status_response to do shell script "tmutil status"
+	set status_response to my removeChars(status_response, {quote, ";"})
+	set status_response_parsed to my stringtolist(status_response, return)
+	set item 1 of status_response_parsed to ""
+	set status_response_parsed to my emptylist(status_response_parsed)
+	--	choose from list status_response_parsed
+	log length of status_response_parsed
+	repeat with i from 1 to length of status_response_parsed
+		--log item i of status_response_parsed
+		
+		try
+			if item i of status_response_parsed contains "Percent" then
+				set tm_Percent of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_Percent of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "ClientID" then
+				set tm_ClientID of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_ClientID of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		
+		try
+			if item i of status_response_parsed contains "Running" then
+				set tm_running of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_running of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "BackupPhase" then
+				set tm_BackupPhase of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_BackupPhase of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "DestinationID" then
+				set tm_DestinationID of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_DestinationID of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "DestinationMountPoint" then
+				set tm_DestinationMountPoint of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_DestinationMountPoint of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "TimeRemaining" then
+				set tm_TimeRemaining of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_TimeRemaining of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+		try
+			if item i of status_response_parsed contains "bytes" then
+				set tm_bytes of Backup_running to item 2 of my stringtolist(item i of status_response_parsed, {" = "})
+				log tm_bytes of Backup_running
+			end if
+		on error errmsg
+			display dialog errmsg
+		end try
+		
+	end repeat
+	
+	set Backup_status to Backup_running
+	
+end parse_status
 
 on mountDrive(the_offset)
 	if atm_kind of item Selected_Backup of Destination_Info is "Local" then
@@ -300,4 +379,18 @@ on list_position(this_item, this_list, is_strict)
 	end if
 	return 0
 end list_position
+
+on removeChars(theString, toremove)
+	set oldelim to AppleScript's text item delimiters
+	try
+		set AppleScript's text item delimiters to toremove
+		set dlist to (every text item of theString)
+		set AppleScript's text item delimiters to oldelim
+		set final_txt to dlist as text
+		return final_txt
+	on error errmsg
+		set AppleScript's text item delimiters to oldelim
+		display dialog errmsg
+	end try
+end removeChars
 
