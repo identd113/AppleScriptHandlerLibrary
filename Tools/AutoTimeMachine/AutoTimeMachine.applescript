@@ -4,6 +4,7 @@ global Destination_Info
 global Selected_Backup
 global Backup_status
 global Backup_started
+global Backup_running
 
 use AppleScript version "2.4"
 use scripting additions
@@ -12,16 +13,22 @@ use application "JSON Helper"
 on run {}
 	set Destination_Info to {}
 	set Selected_Backup to 0
-	set app_version to "20240120"
+	set app_version to "20240124"
 	set Backup_started to false
 	set app_string to name of me & " " & app_version
 	set progress description to "Starting " & app_string
 	--my statusBackup()
-	my main()
+	set Backup_running to {tm_BackupPhase:"", tm_ClientID:"", tm_DestinationID:"", tm_DestinationMountPoint:"", tm_FractionOfProgressBar:"", tm_Percent:"", tm_bytes:"", tm_totalBytes:"", totalFiles:"", tm_running:0, tm_TimeRemaining:""}
+	if my isRunning() is true then
+		--display dialog "Backup is already running"
+		my loopStatus()
+	else
+		my main()
+		my loopStatus()
+	end if
 end run
 
 on main()
-	delay 1
 	set Destination_Info to my getBackupID()
 	set item 1 of Destination_Info to ""
 	set Destination_Info to my emptylist(Destination_Info)
@@ -49,7 +56,7 @@ on main()
 		set progress completed steps to -1
 		activate me
 		set progress description to "Starting Backup with " & app_string
-		set progress additional description to "Backup Destination ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Backup Destination Name: " & atm_name of item Selected_Backup of Destination_Info
+		set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID:    " & atm_id of item Selected_Backup of Destination_Info
 		delay 0.1
 		set runBackupResponse to my runBackup(Selected_Backup)
 	end if
@@ -59,40 +66,61 @@ on reopen {}
 	activate me
 end reopen
 
-on idle {}
-	my parse_status() 
-	if tm_running of Backup_status is 1 then
-		set progress total steps to 1
-		set Backup_started to true
-		set progress description to tm_BackupPhase of Backup_status
-		set progress completed steps to tm_Percent of Backup_status
-	end if
-	
-	if Backup_started is true and tm_running of Backup_status is 0 then
+on loopStatus()
+	repeat
+		try
+			my parse_status()
+			if Backup_started is true and tm_running of Backup_status is "1" then
+				set progress total steps to 100
+				set progress completed steps to round ((tm_Percent of Backup_status) * 100 as number)
+				set progress description to tm_BackupPhase of Backup_status & "..."
+				if tm_DestinationMountPoint of Backup_status is not "" then
+					set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Mount: " & tm_DestinationMountPoint of Backup_status
+				end if
+				delay 1
+			end if
+			
+			if Backup_started is true and tm_running of Backup_status is "0" then
+				delay 1
+				set progress total steps to 1
+				set progress completed steps to 1
+				activate me
+				set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
+				delay 0.1
+				my ejectDrive(Selected_Backup)
+				delay 1
+				set progress completed steps to 1
+				set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
+				set progress additional description to "Mount: " & tm_DestinationMountPoint of Backup_status
+				delay 5
+				exit repeat
+			end if
+		on error errmsg
+			display dialog errmsg
+			--exit repeat
+		end try
+		--display dialog "tm_running of Backup_status: " & tm_running of Backup_status & return & "Backup_status: " & Backup_status
 		delay 1
-		set progress completed steps to 0
-		set progress total steps to 1
-		set progress additional description to runBackupResponse
-		activate me
-		set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
-		delay 0.1
-		my ejectDrive(Selected_Backup)
-		delay 1
-		set progress completed steps to 1
-		set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
-		delay 10
-		quit {}
+	end repeat
+	quit {}
+end loopStatus
+
+on isRunning()
+	--Ensure a backup is not currently running.
+	set preCheck to (do shell script "tmutil status")
+	if preCheck contains "Running = 1" then
+		return true
 	end if
-	beep
-	return 3
-end idle
+	return false
+end isRunning
 
 on runBackup(the_offset)
 	--display dialog "tmutil startbackup --block --destination " & dest_id
 	--do shell script "tmutil startbackup --block --destination " & atm_id of item the_offset of Destination_Info)
 	--	do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info
 	delay 2
-	my parse_status()
+	--my parse_status()
+	set Backup_started to true
 	return (do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info)
 end runBackup
 
@@ -142,6 +170,7 @@ on getBackupID()
 			set atm_quota of newBackup to item 2 of my stringtolist(item i of getBackupID_list, ": ")
 			--	log "quota: " & atm_quota of newBackup
 		end if
+		
 		if item i of getBackupID_list contains "=" or i is length of getBackupID_list then
 			--	log "yes"
 			set new_item_reset to true
@@ -154,7 +183,7 @@ on getBackupID()
 end getBackupID
 
 on parse_status()
-	set Backup_running to {tm_BackupPhase:"", tm_ClientID:"", tm_DestinationID:"", tm_DestinationMountPoint:"", tm_FractionOfProgressBar:"", tm_Percent:"", tm_bytes:"", tm_totalBytes:"", totalFiles:"", tm_running:0, tm_TimeRemaining:""}
+	--	set Backup_running to {tm_BackupPhase:"", tm_ClientID:"", tm_DestinationID:"", tm_DestinationMountPoint:"", tm_FractionOfProgressBar:"", tm_Percent:"", tm_bytes:"", tm_totalBytes:"", totalFiles:"", tm_running:0, tm_TimeRemaining:""}
 	set status_response to do shell script "tmutil status"
 	set status_response to my removeChars(status_response, {quote, ";"})
 	set status_response_parsed to my stringtolist(status_response, return)
