@@ -1,5 +1,5 @@
-global app_version
-global app_string
+global App_version
+global App_string
 global Destination_Info
 global Selected_Backup
 global Backup_status
@@ -13,14 +13,16 @@ use application "JSON Helper"
 on run {}
 	set Destination_Info to {}
 	set Selected_Backup to 0
-	set app_version to "20240124"
+	set App_version to "20240124"
 	set Backup_started to false
-	set app_string to name of me & " " & app_version
-	set progress description to "Starting " & app_string
-	--my statusBackup()
+	set App_string to name of me & " " & App_version
+	set progress description to "Starting " & App_string
 	set Backup_running to {tm_BackupPhase:"", tm_ClientID:"", tm_DestinationID:"", tm_DestinationMountPoint:"", tm_FractionOfProgressBar:"", tm_Percent:"", tm_bytes:"", tm_totalBytes:"", totalFiles:"", tm_running:0, tm_TimeRemaining:""}
 	if my isRunning() is true then
-		--display dialog "Backup is already running"
+		set Destination_Info to my getBackupID()
+		my parse_status()
+		set Backup_started to true
+		set tm_running of Backup_status to "1"
 		my loopStatus()
 	else
 		my main()
@@ -30,35 +32,37 @@ end run
 
 on main()
 	set Destination_Info to my getBackupID()
-	set item 1 of Destination_Info to ""
-	set Destination_Info to my emptylist(Destination_Info)
 	
 	if length of Destination_Info is greater than or equal to 2 then
-		set selectedResponse to my selectBackup("")
+		set selectedResponse to my selectBackup2("")
 	else
 		set Selected_Backup to 1
 	end if
 	if Selected_Backup is not 0 then
-		set progress completed steps to 0
+		set progress total steps to -1
+		set progress completed steps to -1
 		log "1"
-		set progress total steps to 1
 		set progress description to ("Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string)
 		log "2"
 		log "Verifying " & atm_name of item Selected_Backup of Destination_Info & " is mounted..." as string
 		log "3"
-		delay 0.1
+		delay 0.5
+		set progress total steps to 1
+		set progress completed steps to 0
+		delay 0.5
 		set mountDriveResponse to my mountDrive(Selected_Backup)
-		delay 0.1
-		set progress additional description to mountDriveResponse
 		set progress completed steps to 1
-		delay 1
-		set progress total steps to -1
-		set progress completed steps to -1
+		set progress additional description to mountDriveResponse
+		delay 0.5
+		--	set progress total steps to -1
+		--	set progress completed steps to -1
 		activate me
-		set progress description to "Starting Backup with " & app_string
-		set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID:    " & atm_id of item Selected_Backup of Destination_Info
-		delay 0.1
+		set progress description to "Starting Backup with " & App_string
+		set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID:       " & atm_id of item Selected_Backup of Destination_Info
+		delay 0.5
 		set runBackupResponse to my runBackup(Selected_Backup)
+	else
+		return false
 	end if
 end main
 
@@ -70,27 +74,35 @@ on loopStatus()
 	repeat
 		try
 			my parse_status()
+			
 			if Backup_started is true and tm_running of Backup_status is "1" then
-				set progress total steps to 100
-				set progress completed steps to round ((tm_Percent of Backup_status) * 100 as number)
+				if tm_Percent of Backup_status is in {"-1", ""} then
+					set progress total steps to -1
+					set progress completed steps to -1
+				else
+					set progress total steps to 100
+					set progress completed steps to round ((tm_Percent of Backup_status) * 100 as number)
+				end if
 				set progress description to tm_BackupPhase of Backup_status & "..."
 				if tm_DestinationMountPoint of Backup_status is not "" then
-					set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID: " & atm_id of item Selected_Backup of Destination_Info & return & "Mount: " & tm_DestinationMountPoint of Backup_status
+					set progress additional description to "Name: " & atm_name of item Selected_Backup of Destination_Info & return & "ID:       " & atm_id of item Selected_Backup of Destination_Info & return & "Mount: " & tm_DestinationMountPoint of Backup_status
 				end if
 				delay 1
 			end if
 			
 			if Backup_started is true and tm_running of Backup_status is "0" then
-				delay 1
 				set progress total steps to 1
 				set progress completed steps to 1
+				delay 0.5
 				activate me
-				set progress description to "Backup Complete, ejecting disk...(" & app_string & ")"
-				delay 0.1
+				set progress description to "Backup Complete, ejecting disk...(" & App_string & ")"
+				delay 0.5
+				set progress total steps to 1
+				set progress completed steps to 0
 				my ejectDrive(Selected_Backup)
-				delay 1
 				set progress completed steps to 1
-				set progress description to "Backup Complete, and disk ejected. (" & app_string & ")"
+				delay 0.5
+				set progress description to "Backup Complete, and disk ejected. (" & App_string & ")"
 				set progress additional description to "Mount: " & tm_DestinationMountPoint of Backup_status
 				delay 5
 				exit repeat
@@ -102,7 +114,6 @@ on loopStatus()
 		--display dialog "tm_running of Backup_status: " & tm_running of Backup_status & return & "Backup_status: " & Backup_status
 		delay 1
 	end repeat
-	quit {}
 end loopStatus
 
 on isRunning()
@@ -118,9 +129,8 @@ on runBackup(the_offset)
 	--display dialog "tmutil startbackup --block --destination " & dest_id
 	--do shell script "tmutil startbackup --block --destination " & atm_id of item the_offset of Destination_Info)
 	--	do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info
-	delay 2
-	--my parse_status()
 	set Backup_started to true
+	delay 0.5
 	return (do shell script "tmutil startbackup --destination " & atm_id of item the_offset of Destination_Info)
 end runBackup
 
@@ -179,6 +189,8 @@ on getBackupID()
 		end if
 		
 	end repeat
+	set item 1 of returned_backups to ""
+	set returned_backups to my emptylist(returned_backups)
 	return returned_backups
 end getBackupID
 
@@ -190,7 +202,7 @@ on parse_status()
 	set item 1 of status_response_parsed to ""
 	set status_response_parsed to my emptylist(status_response_parsed)
 	--	choose from list status_response_parsed
-	log length of status_response_parsed
+	log " TM backups: " & length of status_response_parsed
 	repeat with i from 1 to length of status_response_parsed
 		--log item i of status_response_parsed
 		
@@ -292,13 +304,37 @@ end ejectDrive
 on selectBackup(the_offset)
 	set disk_names to {}
 	set temp_names to my getNames(0)
+	if length of temp_names = 1 then
+		return 1
+	end if
 	try
 		set backup_run_offset to (choose from list temp_names)
+	on error errmsg
+		return 0
 	end try
 	set Selected_Backup to my list_position(backup_run_offset, temp_names, true)
 	log Selected_Backup
-	return Selected_Backup
 end selectBackup
+
+on selectBackup2(the_offset)
+	set disk_names to {}
+	set default_offset to 1
+	-- set temp_names to my getNames(0)
+	if length of Destination_Info = 1 then
+		return 1
+	end if
+	--set Destination_Info to (reverse of Destination_Info)
+	repeat with i from 1 to length of Destination_Info
+		if atm_kind of item i of Destination_Info = "Local" then
+			set default_offset to i
+		end if
+		set end of disk_names to ((i & ": " & atm_name of item i of Destination_Info) & ", Kind: " & (atm_kind of item i of Destination_Info) as text)
+	end repeat
+	
+	set backup_run_dialog to display dialog my listtostring(disk_names, return) default answer default_offset buttons {"Cancel", "Select"} default button 2 giving up after 10
+	set Selected_Backup to text returned of backup_run_dialog
+	log Selected_Backup
+end selectBackup2
 
 on getNames(the_offset)
 	set disk_name to {}
@@ -316,7 +352,7 @@ end getNames
 on getIDs(the_offset)
 	set disk_id to {}
 	repeat with i from 1 to length of Destination_Info
-		set end of disk_id to atm_type of item i of Destination_Info
+		set end of disk_id to atm_id of item i of Destination_Info
 	end repeat
 	log disk_id
 	if the_offset is 0 then
