@@ -2,8 +2,8 @@
 
 on run {}
 	set temp_list to {"Eggplant", "Bread", "Milk", "Water", "egg"}
-	log "1 " & my list_position("Egg", temp_list, false) -- This returns 1, as is_strict is set to false
-	log "2 " & my list_position("Egg", temp_list, true) -- This returns 5, as is_strict is set to true
+	log "#1 " & my list_position("Egg", temp_list, false) -- This returns 1, as is_strict is set to false
+	log "#2 " & my list_position("Egg", temp_list, true) -- This returns 5, as is_strict is set to true
 	
 end run
 

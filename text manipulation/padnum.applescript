@@ -1,4 +1,4 @@
-# Takes a string number ("9"), that is  less than 10, and returns it as a 2 digit string
+# Takes a string number ("9"), that is less than 10, and returns it as a 2 digit string
 
 on run {}
 	log my padnum("9")

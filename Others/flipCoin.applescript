@@ -1,6 +1,6 @@
 
 on run {}
-	set coin_result to my flipCoin("1")
+	set coin_result to my flipCoin("1000000")
 	log coin_result
 end run
 

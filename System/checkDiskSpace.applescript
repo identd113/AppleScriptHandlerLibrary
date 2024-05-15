@@ -2,8 +2,8 @@
 # Requires stringtolist and emptylist.
 
 on run {}
-	set temp_file to path to startup disk
-	set temp_file_posix to POSIX path of temp_file
+	set temp_disk to path to startup disk
+	set temp_file_posix to POSIX path of temp_disk
 	set disk_space to my checkDiskSpace(temp_file_posix)
 	log "The disk " & item 1 of disk_space & " is " & item 2 of disk_space & "% full"
 	#	choose from list my checkDiskSpace(path to startup disk)
