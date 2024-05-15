@@ -2,9 +2,41 @@
 
 on run {}
 	delay 1
-	if option_down of my isModifierKeyPressed("option") = true then
-		log "Option was down"
+	set temp_run to my isModifierKeyPressed("")
+	log temp_run
+	
+	if option_down of temp_run = true then
+		log "option was down"
 	end if
+	
+	if command_down of temp_run = true then
+		log "command was down"
+	end if
+	
+	if control_down of temp_run = true then
+		log "control was down"
+	end if
+	
+	if shift_down of temp_run = true then
+		log "shift was down"
+	end if
+	
+	if caps_down of temp_run = true then
+		log "caps was down"
+	end if
+	
+	if numlock_down of temp_run = true then
+		log "numlock was down"
+	end if
+	
+	if function_down of temp_run = true then
+		log "function was down"
+	end if
+	
+	if help_down of temp_run = true then
+		log "help was down"
+	end if
+	
 end run
 
 
